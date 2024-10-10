@@ -1,5 +1,3 @@
-# ai_system/core/steps.py
-
 from ..models.FaceDetector import FaceDetector
 from ..models.FacePredictor import FacePredictor
 from ..models.FaceEncoder import FaceEncoder

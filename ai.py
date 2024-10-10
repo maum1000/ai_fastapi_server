@@ -7,12 +7,14 @@ import os
 from sklearn.metrics.pairwise import cosine_similarity
 import logging  # 로그 출력을 위한 모듈
 from pathlib import Path
+
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 logger = logging.getLogger('pybo')  # 'pybo'라는 로거 생성
 
 # 각 단계별 클래스를 개별적으로 임포트합니다.
 from ai_system import Pipeline, Data, BaseConfig, steps, factories
+
 
 def process_image(image_path, selected_detectors):
     """
@@ -64,6 +66,7 @@ def process_image(image_path, selected_detectors):
     encodings = data.encodings
     return output_image_path, encodings
 
+
 def compare_faces(image1_path: str, image2_path: str, selected_detectors: list = ['yolo']) -> float:
     """
     두 이미지의 얼굴을 비교하여 유사도를 계산합니다.
@@ -108,15 +111,20 @@ def compare_faces(image1_path: str, image2_path: str, selected_detectors: list =
     # 유사도 스코어를 %로 변환 (0 ~ 1 -> 0% ~ 100%)
     similarity_percentage = similarity_score[0][0] * 100
 
+    if similarity_percentage >= 70:
+        similarity_percentage = np.interp(similarity_percentage, [70, 100], [0, 100])
+
     return similarity_percentage
+
 
 class DetectionConfig(BaseConfig):
     # 별도로 추가할 커스터마이징이 없으면 그대로 사용
-    yolo_path = 'yolov8_l_trump.pt'
+    yolo_president_path = 'yolov8_l_president.pt'
     django_dir = BASE_DIR
     results_folder = os.path.join(django_dir, 'media', 'detection', 'a_image1')
 
-def detect_president(image_path: str, selected_detectors: list = ['yolo']) -> str:
+
+def detect_president(image_path: str, selected_detectors: list = ['yolo_president']) -> str:
     """
     이미지를 처리하고, 얼굴 탐지 결과 바운딩 박스를 이미지에 그려 저장하는 함수입니다.
 
@@ -161,7 +169,9 @@ def detect_president(image_path: str, selected_detectors: list = ['yolo']) -> st
 
     # 처리된 이미지의 경로 반환
     output_image_path = data.output_image_path
+    president_list = data.president_name_list
 
     # 서버에서 템플릿 렌더링시 사용할 상대 경로 반환
     delete_path = os.path.join(BASE_DIR, 'media')
-    return output_image_path
+
+    return output_image_path, president_list

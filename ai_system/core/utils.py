@@ -1,5 +1,3 @@
-# ai_system/core/utils.py
-
 import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
@@ -17,45 +15,62 @@ ImagePipeline 클래스는 이미지 리사이징, 텍스트 추가, 이미지 �
 """
 
 
-class ImagePipeline:
+class ImageUtils:
     """
     이미지 처리 파이프라인에서 사용되는 유틸리티 메서드를 제공하는 클래스입니다.
 
-    메서드:
-        resize_image_with_padding: 이미지의 종횡비를 유지하면서 패딩을 추가하여 리사이즈합니다.
-        draw_korean_text: 이미지에 한글 텍스트를 그립니다.
-        extend_image_with_text: 이미지 상단에 텍스트를 추가하여 이미지를 확장합니다.
-        draw_rectangle: 이미지에 사각형을 그립니다.
-        copy_image_and_add_metadata: 이미지를 복사하고 메타데이터를 추가합니다.
+    Methods
+    -------
+    resize_image_with_padding(image: np.ndarray, target_size: int, padding_color: tuple) -> tuple:
+        이미지의 종횡비를 유지하면서 패딩을 추가하여 리사이즈합니다.
+
+    draw_korean_text(image: np.ndarray, text: str, position: tuple, font_size: int, font_color: tuple, background_color: tuple) -> np.ndarray:
+        이미지에 한글 텍스트를 그립니다.
+
+    extend_image_with_text(image: np.ndarray, text: str, font_size: int, font_color: tuple, background_color: tuple) -> np.ndarray:
+        이미지 상단에 텍스트를 추가하여 이미지를 확장합니다.
+
+    draw_rectangle(image: np.ndarray, coordinates: tuple, color: tuple, thickness: int) -> None:
+        이미지에 사각형을 그립니다.
+
+    copy_image_and_add_metadata(image_path: str, output_folder: str, data: dict) -> None:
+        이미지를 복사하고 메타데이터를 추가합니다.
     """
 
-    def __init__(self, config):
+    def __init__(self, config: dict):
         """
         ImagePipeline을 초기화합니다.
 
-        Args:
-            config (dict): 'font_path' 등의 설정이 포함된 구성 딕셔너리입니다.
+        Parameters
+        ----------
+        config : dict
+            'font_path' 등의 설정이 포함된 구성 딕셔너리입니다.
         """
         self.config = config
         self.font_path = config.get('font_path', None)
         if not self.font_path:
             logging.warning("설정에서 폰트 경로가 지정되지 않았습니다.")
 
-    def resize_image_with_padding(self, image, target_size, padding_color=(0, 0, 0)):
+    def resize_image_with_padding(self, image: np.ndarray, target_size: int, padding_color: tuple = (0, 0, 0)) -> tuple:
         """
         이미지의 종횡비를 유지하면서 패딩을 추가하여 원하는 크기로 리사이즈합니다.
 
-        Args:
-            image (numpy.ndarray): 리사이즈할 입력 이미지입니다.
-            target_size (int): 출력 이미지의 원하는 크기(폭과 높이)입니다.
-            padding_color (tuple): 패딩 영역에 사용할 RGB 색상 값입니다. 기본값은 검정색 (0, 0, 0)입니다.
+        Parameters
+        ----------
+        image : np.ndarray
+            리사이즈할 입력 이미지입니다.
+        target_size : int
+            출력 이미지의 원하는 크기(폭과 높이)입니다.
+        padding_color : tuple, optional
+            패딩 영역에 사용할 RGB 색상 값입니다. 기본값은 검정색 (0, 0, 0)입니다.
 
-        Returns:
-            tuple:
-                - new_img (numpy.ndarray): 패딩이 추가된 리사이즈된 이미지입니다.
-                - scale (float): 이미지에 적용된 스케일 팩터입니다.
-                - top (int): 위쪽에 추가된 패딩의 픽셀 수입니다.
-                - left (int): 왼쪽에 추가된 패딩의 픽셀 수입니다.
+        Returns
+        -------
+        tuple
+            - new_img (np.ndarray): 패딩이 추가된 리사이즈된 이미지.
+            - scale (float): 이미지에 적용된 스케일 팩터.
+            - top (int): 위쪽에 추가된 패딩의 픽셀 수.
+            - left (int): 왼쪽에 추가된 패딩의 픽셀 수.
         """
         # 이미지에 적용할 스케일 팩터 계산
         scale = self._calculate_scale(image.shape, target_size)
@@ -67,26 +82,35 @@ class ImagePipeline:
 
     def draw_korean_text(
         self,
-        image,
-        text,
-        position,
-        font_size,
-        font_color=(255, 255, 255),
-        background_color=(0, 0, 0),
-    ):
+        image: np.ndarray,
+        text: str,
+        position: tuple,
+        font_size: int,
+        font_color: tuple = (255, 255, 255),
+        background_color: tuple = (0, 0, 0),
+    ) -> np.ndarray:
         """
         이미지의 지정된 위치에 한글 텍스트를 그립니다.
 
-        Args:
-            image (numpy.ndarray): 텍스트를 그릴 이미지입니다.
-            text (str): 그릴 텍스트입니다.
-            position (tuple): 텍스트를 배치할 (x, y) 좌표입니다.
-            font_size (int): 텍스트의 폰트 크기입니다.
-            font_color (tuple): 텍스트의 RGB 색상입니다. 기본값은 흰색 (255, 255, 255)입니다.
-            background_color (tuple): 텍스트 배경의 RGB 색상입니다. 기본값은 검정색 (0, 0, 0)입니다.
+        Parameters
+        ----------
+        image : np.ndarray
+            텍스트를 그릴 이미지입니다.
+        text : str
+            그릴 텍스트입니다.
+        position : tuple
+            텍스트를 배치할 (x, y) 좌표입니다.
+        font_size : int
+            텍스트의 폰트 크기입니다.
+        font_color : tuple, optional
+            텍스트의 RGB 색상입니다. 기본값은 흰색 (255, 255, 255)입니다.
+        background_color : tuple, optional
+            텍스트 배경의 RGB 색상입니다. 기본값은 검정색 (0, 0, 0)입니다.
 
-        Returns:
-            numpy.ndarray: 텍스트가 그려진 이미지입니다.
+        Returns
+        -------
+        np.ndarray
+            텍스트가 그려진 이미지입니다.
         """
         if not text or not self.font_path:
             return image
@@ -112,24 +136,32 @@ class ImagePipeline:
 
     def extend_image_with_text(
         self,
-        image,
-        text,
-        font_size,
-        font_color=(255, 255, 255),
-        background_color=(0, 0, 0),
-    ):
+        image: np.ndarray,
+        text: str,
+        font_size: int,
+        font_color: tuple = (255, 255, 255),
+        background_color: tuple = (0, 0, 0),
+    ) -> np.ndarray:
         """
         이미지 상단에 텍스트를 추가하여 이미지를 확장합니다.
 
-        Args:
-            image (numpy.ndarray): 확장할 원본 이미지입니다.
-            text (str): 상단에 추가할 텍스트입니다.
-            font_size (int): 텍스트의 폰트 크기입니다.
-            font_color (tuple): 텍스트의 RGB 색상입니다. 기본값은 흰색 (255, 255, 255)입니다.
-            background_color (tuple): 확장된 영역의 배경 RGB 색상입니다. 기본값은 검정색 (0, 0, 0)입니다.
+        Parameters
+        ----------
+        image : np.ndarray
+            확장할 원본 이미지입니다.
+        text : str
+            상단에 추가할 텍스트입니다.
+        font_size : int
+            텍스트의 폰트 크기입니다.
+        font_color : tuple, optional
+            텍스트의 RGB 색상입니다. 기본값은 흰색 (255, 255, 255)입니다.
+        background_color : tuple, optional
+            확장된 영역의 배경 RGB 색상입니다. 기본값은 검정색 (0, 0, 0)입니다.
 
-        Returns:
-            numpy.ndarray: 확장되고 텍스트가 추가된 이미지입니다.
+        Returns
+        -------
+        np.ndarray
+            확장되고 텍스트가 추가된 이미지입니다.
         """
         if not self.font_path:
             logging.warning("폰트 경로가 지정되지 않았습니다. 텍스트 확장을 건너뜁니다.")
@@ -148,33 +180,45 @@ class ImagePipeline:
         draw.text((10, 10), text, font=font, fill=font_color)
         return np.array(image_pil)
 
-    def draw_rectangle(self, image, coordinates, color, thickness):
+    def draw_rectangle(self, image: np.ndarray, coordinates: tuple, color: tuple, thickness: int) -> None:
         """
         이미지에 사각형을 그립니다.
 
-        Args:
-            image (numpy.ndarray): 사각형을 그릴 이미지입니다.
-            coordinates (tuple): 사각형의 (x1, y1, x2, y2) 좌표입니다.
-            color (tuple): 사각형 테두리의 RGB 색상입니다.
-            thickness (int): 사각형 테두리의 두께(픽셀)입니다.
+        Parameters
+        ----------
+        image : np.ndarray
+            사각형을 그릴 이미지입니다.
+        coordinates : tuple
+            사각형의 (x1, y1, x2, y2) 좌표입니다.
+        color : tuple
+            사각형 테두리의 RGB 색상입니다.
+        thickness : int
+            사각형 테두리의 두께(픽셀)입니다.
 
-        Returns:
-            None: 이미지는 직접 수정됩니다.
+        Returns
+        -------
+        None
         """
-        x1, y1 ,x2, y2 = coordinates
+        x1, y1, x2, y2 = coordinates
         # 사각형 그리기
         cv2.rectangle(image, (x1, y1), (x2, y2), color, thickness)
 
-    def copy_image_and_add_metadata(self, image_path, output_folder, data):
+    def copy_image_and_add_metadata(self, image_path: str, output_folder: str, data: dict) -> None:
         """
         이미지를 지정된 폴더로 복사하고 메타데이터를 추가합니다.
 
-        Args:
-            image_path (str): 원본 이미지의 경로입니다.
-            output_folder (str): 이미지를 복사할 폴더입니다.
+        Parameters
+        ----------
+        image_path : str
+            원본 이미지의 경로입니다.
+        output_folder : str
+            이미지를 복사할 폴더입니다.
+        data : dict
+            메타데이터 정보가 포함된 데이터입니다.
 
-        Returns:
-            None
+        Returns
+        -------
+        None
         """
         # 이미지를 출력 폴더로 복사
         copied_image_path = self._copy_image_to_folder(image_path, output_folder)
@@ -182,51 +226,66 @@ class ImagePipeline:
         self._add_metadata_to_image(copied_image_path, data)
         logging.info(f"메타데이터와 함께 이미지 저장됨: {copied_image_path}")
 
-    # Private helper methods
-    def _calculate_scale(self, image_shape, target_size):
+    # Private helper methods (사용자에게 노출되지 않는 내부 함수)
+    def _calculate_scale(self, image_shape: tuple, target_size: int) -> float:
         """
         이미지를 목표 크기로 리사이즈하기 위한 스케일 팩터를 계산합니다.
 
-        Args:
-            image_shape (tuple): 이미지의 형태 (높이, 폭, 채널 수)입니다.
-            target_size (int): 출력 이미지의 원하는 크기(폭과 높이)입니다.
+        Parameters
+        ----------
+        image_shape : tuple
+            이미지의 형태 (높이, 폭, 채널 수)입니다.
+        target_size : int
+            출력 이미지의 원하는 크기(폭과 높이)입니다.
 
-        Returns:
-            float: 이미지를 리사이즈하기 위한 스케일 팩터입니다.
+        Returns
+        -------
+        float
+            이미지를 리사이즈하기 위한 스케일 팩터입니다.
         """
         h, w = image_shape[:2]
         return target_size / max(h, w)
 
-    def _resize_image(self, image, scale):
+    def _resize_image(self, image: np.ndarray, scale: float) -> np.ndarray:
         """
         주어진 스케일 팩터를 사용하여 이미지를 리사이즈합니다.
 
-        Args:
-            image (numpy.ndarray): 리사이즈할 이미지입니다.
-            scale (float): 이미지를 리사이즈할 스케일 팩터입니다.
+        Parameters
+        ----------
+        image : np.ndarray
+            리사이즈할 이미지입니다.
+        scale : float
+            이미지를 리사이즈할 스케일 팩터입니다.
 
-        Returns:
-            numpy.ndarray: 리사이즈된 이미지입니다.
+        Returns
+        -------
+        np.ndarray
+            리사이즈된 이미지입니다.
         """
         h, w = image.shape[:2]
         new_w, new_h = int(w * scale), int(h * scale)
         # 이미지 리사이즈
         return cv2.resize(image, (new_w, new_h))
 
-    def _add_padding(self, image, target_size, padding_color=(0, 0, 0)):
+    def _add_padding(self, image: np.ndarray, target_size: int, padding_color: tuple = (0, 0, 0)) -> tuple:
         """
         이미지를 목표 크기로 만들기 위해 패딩을 추가합니다.
 
-        Args:
-            image (numpy.ndarray): 패딩을 추가할 이미지입니다.
-            target_size (int): 출력 이미지의 원하는 크기(폭과 높이)입니다.
-            padding_color (tuple): 패딩 영역에 사용할 RGB 색상입니다.
+        Parameters
+        ----------
+        image : np.ndarray
+            패딩을 추가할 이미지입니다.
+        target_size : int
+            출력 이미지의 원하는 크기(폭과 높이)입니다.
+        padding_color : tuple, optional
+            패딩 영역에 사용할 RGB 색상입니다.
 
-        Returns:
-            tuple:
-                - padded_img (numpy.ndarray): 패딩이 추가된 이미지입니다.
-                - top (int): 위쪽에 추가된 패딩의 픽셀 수입니다.
-                - left (int): 왼쪽에 추가된 패딩의 픽셀 수입니다.
+        Returns
+        -------
+        tuple
+            - padded_img (np.ndarray): 패딩이 추가된 이미지.
+            - top (int): 위쪽에 추가된 패딩의 픽셀 수.
+            - left (int): 왼쪽에 추가된 패딩의 픽셀 수.
         """
         delta_w = target_size - image.shape[1]
         delta_h = target_size - image.shape[0]
@@ -240,18 +299,22 @@ class ImagePipeline:
         )
         return padded_img, top, left
 
-    def _measure_text_size(self, text, font):
+    def _measure_text_size(self, text: str, font: ImageFont.FreeTypeFont) -> tuple:
         """
         지정된 폰트로 텍스트를 그렸을 때의 크기(폭과 높이)를 측정합니다.
 
-        Args:
-            text (str): 측정할 텍스트입니다.
-            font (PIL.ImageFont.FreeTypeFont): 텍스트를 렌더링하는 데 사용할 폰트입니다.
+        Parameters
+        ----------
+        text : str
+            측정할 텍스트입니다.
+        font : PIL.ImageFont.FreeTypeFont
+            텍스트를 렌더링하는 데 사용할 폰트입니다.
 
-        Returns:
-            tuple:
-                - text_width (int): 텍스트의 폭(픽셀)입니다.
-                - text_height (int): 텍스트의 높이(픽셀)입니다.
+        Returns
+        -------
+        tuple
+            - text_width (int): 텍스트의 폭(픽셀).
+            - text_height (int): 텍스트의 높이(픽셀).
         """
         # 텍스트 크기 측정을 위한 더미 이미지 생성
         dummy_img = Image.new('RGB', (1, 1))
@@ -262,17 +325,23 @@ class ImagePipeline:
         text_height = text_bbox[3] - text_bbox[1]
         return text_width, text_height
 
-    def _calculate_text_box(self, position, text_size, padding=5):
+    def _calculate_text_box(self, position: tuple, text_size: tuple, padding: int = 5) -> tuple:
         """
         텍스트 배경 박스의 좌표를 계산합니다.
 
-        Args:
-            position (tuple): 텍스트 시작 위치의 (x, y) 좌표입니다.
-            text_size (tuple): 텍스트의 (폭, 높이)입니다.
-            padding (int): 텍스트 주변에 추가할 패딩의 크기입니다.
+        Parameters
+        ----------
+        position : tuple
+            텍스트 시작 위치의 (x, y) 좌표입니다.
+        text_size : tuple
+            텍스트의 (폭, 높이)입니다.
+        padding : int, optional
+            텍스트 주변에 추가할 패딩의 크기입니다.
 
-        Returns:
-            tuple: 텍스트 배경 박스의 좌표 (왼쪽, 위쪽, 오른쪽, 아래쪽)입니다.
+        Returns
+        -------
+        tuple
+            텍스트 배경 박스의 좌표 (왼쪽, 위쪽, 오른쪽, 아래쪽)입니다.
         """
         x, y = position
         text_width, text_height = text_size
@@ -283,17 +352,23 @@ class ImagePipeline:
             y + text_height + padding,
         )
 
-    def _extend_image_if_needed(self, image, new_size, background_color=(0, 0, 0)):
+    def _extend_image_if_needed(self, image: np.ndarray, new_size: tuple, background_color: tuple = (0, 0, 0)) -> np.ndarray:
         """
         필요한 경우 이미지를 확장하여 새로운 크기에 맞춥니다.
 
-        Args:
-            image (numpy.ndarray): 원본 이미지입니다.
-            new_size (tuple): 원하는 (폭, 높이) 크기입니다.
-            background_color (tuple): 확장된 영역에 사용할 RGB 색상입니다.
+        Parameters
+        ----------
+        image : np.ndarray
+            원본 이미지입니다.
+        new_size : tuple
+            원하는 (폭, 높이) 크기입니다.
+        background_color : tuple, optional
+            확장된 영역에 사용할 RGB 색상입니다.
 
-        Returns:
-            numpy.ndarray: 확장된 이미지입니다.
+        Returns
+        -------
+        np.ndarray
+            확장된 이미지입니다.
         """
         new_width, new_height = new_size
         height, width = image.shape[:2]
@@ -309,32 +384,43 @@ class ImagePipeline:
             return extended_img
         return image
 
-    def _calculate_total_text_height(self, text, font_size):
+    def _calculate_total_text_height(self, text: str, font_size: int) -> int:
         """
         줄 간격과 패딩을 포함하여 텍스트를 표시하는 데 필요한 전체 높이를 계산합니다.
 
-        Args:
-            text (str): 표시할 텍스트입니다. 여러 줄을 포함할 수 있습니다.
-            font_size (int): 텍스트의 폰트 크기입니다.
+        Parameters
+        ----------
+        text : str
+            표시할 텍스트입니다. 여러 줄을 포함할 수 있습니다.
+        font_size : int
+            텍스트의 폰트 크기입니다.
 
-        Returns:
-            int: 텍스트를 표시하는 데 필요한 총 높이(픽셀)입니다.
+        Returns
+        -------
+        int
+            텍스트를 표시하는 데 필요한 총 높이(픽셀).
         """
         lines = text.split('\n')
         line_height = font_size * 1.5  # 줄 간격을 포함한 줄 높이 추정
         return int(line_height * len(lines) + 20)  # 패딩 포함
 
-    def _create_extended_image(self, image, extra_height, background_color=(0, 0, 0)):
+    def _create_extended_image(self, image: np.ndarray, extra_height: int, background_color: tuple = (0, 0, 0)) -> np.ndarray:
         """
         상단에 추가 공간이 있는 새로운 이미지를 생성하고 원본 이미지를 아래에 배치합니다.
 
-        Args:
-            image (numpy.ndarray): 원본 이미지입니다.
-            extra_height (int): 상단에 추가할 높이입니다.
-            background_color (tuple): 추가 공간에 사용할 RGB 색상입니다.
+        Parameters
+        ----------
+        image : np.ndarray
+            원본 이미지입니다.
+        extra_height : int
+            상단에 추가할 높이입니다.
+        background_color : tuple, optional
+            추가 공간에 사용할 RGB 색상입니다.
 
-        Returns:
-            numpy.ndarray: 상단에 추가 공간이 있는 확장된 이미지입니다.
+        Returns
+        -------
+        np.ndarray
+            상단에 추가 공간이 있는 확장된 이미지입니다.
         """
         height, width = image.shape[:2]
         # 추가 높이를 가진 새로운 이미지 생성
@@ -345,16 +431,21 @@ class ImagePipeline:
         extended_img[extra_height:, :] = image
         return extended_img
 
-    def _copy_image_to_folder(self, image_path, output_folder):
+    def _copy_image_to_folder(self, image_path: str, output_folder: str) -> str:
         """
         이미지를 지정된 출력 폴더로 복사합니다.
 
-        Args:
-            image_path (str): 원본 이미지의 경로입니다.
-            output_folder (str): 출력 폴더의 경로입니다.
+        Parameters
+        ----------
+        image_path : str
+            원본 이미지의 경로입니다.
+        output_folder : str
+            출력 폴더의 경로입니다.
 
-        Returns:
-            str: 출력 폴더에 있는 복사된 이미지의 경로입니다.
+        Returns
+        -------
+        str
+            출력 폴더에 있는 복사된 이미지의 경로입니다.
         """
         # 출력 폴더가 존재하는지 확인하고 없으면 생성
         os.makedirs(output_folder, exist_ok=True)
@@ -363,15 +454,20 @@ class ImagePipeline:
         # 복사된 이미지의 경로 반환
         return os.path.join(output_folder, os.path.basename(image_path))
 
-    def _add_metadata_to_image(self, image_path, data):
+    def _add_metadata_to_image(self, image_path: str, data: dict) -> None:
         """
         이미지 파일에 메타데이터를 추가합니다.
 
-        Args:
-            image_path (str): 이미지 파일의 경로입니다.
+        Parameters
+        ----------
+        image_path : str
+            이미지 파일의 경로입니다.
+        data : dict
+            추가할 메타데이터 정보가 포함된 데이터입니다.
 
-        Returns:
-            None
+        Returns
+        -------
+        None
         """
         image = data.image_rgb
         with Image.open(image_path) as image:

@@ -1,34 +1,48 @@
-# steps/fairface_predict_step.py
+"""
+models/FacePredictor.py
+
+이 모듈은 얼굴 인식 모델을 사용하여 얼굴 이미지에서 인종, 성별, 나이를 예측하는
+FacePredictor 클래스를 정의합니다.
+"""
 
 from abc import ABC, abstractmethod
 import logging
-
 from ..core.config import PipelineStep
 
 
-class FacePredictor(ABC):
+class FacePredictModel(ABC):
     """
     얼굴 인식 모델의 추상 기본 클래스입니다.
+
+    모든 얼굴 인식 모델은 이 클래스를 상속받아 구현됩니다.
     """
+
     @abstractmethod
     def predict(self, face_image):
         """
         얼굴 이미지를 입력으로 받아 예측 결과를 반환합니다.
 
         Args:
-            face_image (numpy array): 얼굴 이미지.
+            face_image (numpy array): 얼굴 이미지 데이터 (RGB 형식).
 
         Returns:
-            dict 또는 None: 예측 결과 딕셔너리 또는 오류 시 None.
+            dict 또는 None: 예측된 인종, 성별, 나이를 포함한 딕셔너리.
+                            오류 발생 시 None을 반환합니다.
         """
         pass
 
 
-class FairFace(FacePredictor):
+class FairFace(FacePredictModel):
     """
     FairFace 모델을 사용하여 얼굴 이미지에서 인종, 성별, 나이를 예측하는 클래스입니다.
+
+    Attributes:
+        device (torch.device): 모델이 실행되는 장치 (GPU 또는 CPU).
+        model (torch.nn.Module): ResNet34 기반 예측 모델.
+        transform (torchvision.transforms.Compose): 이미지 전처리 파이프라인.
     """
-    # 클래스 레이블 정의
+
+    # FairFace 모델에서 사용할 레이블 정의
     RACE_LABELS = ['백인', '흑인', '아시아', '중동']
     GENDER_LABELS = ['남성', '여성']
     AGE_LABELS = ['영아', '유아', '10대', '20대', '30대', '40대', '50대', '60대', '70+']
@@ -38,20 +52,20 @@ class FairFace(FacePredictor):
         FairFace 모델을 초기화합니다.
 
         Args:
-            model_path (str): 모델 파일의 경로.
+            model_path (str): 모델 파일 경로.
         """
         import torch
         import torch.nn as nn
         from torchvision import models, transforms
 
         try:
-            # 디바이스 설정 (GPU 사용 가능 여부 확인)
+            # GPU 사용 가능 여부 확인 후 장치 설정
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-            logging.info(f"FacePredict : FairFace 모델 로드 중: {model_path}")
+            logging.info(f"FacePredict: FairFace 모델 로드 중: {model_path}")
 
-            # ResNet34 모델 불러오기 및 출력 레이어 수정
+            # ResNet34 모델을 불러오고 출력 레이어 수정
             model = models.resnet34(pretrained=True)
-            model.fc = nn.Linear(model.fc.in_features, 18)
+            model.fc = nn.Linear(model.fc.in_features, 18)  # 인종(4), 성별(2), 나이(9) 예측
             model.load_state_dict(torch.load(model_path, map_location=self.device))
             self.model = model.to(self.device).eval()
 
@@ -63,12 +77,12 @@ class FairFace(FacePredictor):
                 transforms.Normalize(
                     mean=[0.485, 0.456, 0.406],
                     std=[0.229, 0.224, 0.225]
-                    )
+                )
             ])
 
-            logging.info("FacePredict : FairFace 모델 로드 완료")
+            logging.info("FacePredict: FairFace 모델 로드 완료")
         except Exception as e:
-            logging.error(f"FacePredict : FairFace 모델 로드 중 오류 발생: {e}")
+            logging.error(f"FacePredict: FairFace 모델 로드 중 오류 발생: {e}")
             self.model = None
 
     def predict(self, face_image):
@@ -76,13 +90,14 @@ class FairFace(FacePredictor):
         얼굴 이미지에서 인종, 성별, 나이를 예측합니다.
 
         Args:
-            face_image (numpy array): 얼굴 이미지.
+            face_image (numpy array): 얼굴 이미지 데이터 (RGB 형식).
 
         Returns:
-            dict 또는 None: 예측 결과 딕셔너리 또는 오류 시 None.
+            dict 또는 None: 인종, 성별, 나이를 포함한 예측 결과 딕셔너리.
+                            오류 발생 시 None을 반환합니다.
         """
         if self.model is None:
-            logging.error("FairFace 모델이 로드되지 않았습니다.")
+            logging.error("FacePredict: FairFace 모델이 로드되지 않았습니다.")
             return None
 
         import numpy as np
@@ -92,23 +107,21 @@ class FairFace(FacePredictor):
             # 이미지 전처리 및 배치 차원 추가
             face_image = self.transform(face_image).unsqueeze(0).to(self.device)
         except Exception as e:
-            logging.error(f"FacePredict : 이미지 전처리 중 오류 발생: {e}")
+            logging.error(f"FacePredict: 이미지 전처리 중 오류 발생: {e}")
             return None
 
         with torch.no_grad():
-            # 모델 추론 수행
+            # 모델을 통해 예측 수행
             outputs = self.model(face_image).cpu().numpy().squeeze()
 
-        # 예측 결과 추출
-        race_pred_idx = np.argmax(outputs[:4])
-        gender_pred_idx = np.argmax(outputs[7:9])
-        age_pred_idx = np.argmax(outputs[9:18])
+        # 예측된 인종, 성별, 나이를 추출
+        race_pred = self.RACE_LABELS[np.argmax(outputs[:4])]  # 인종 예측
+        gender_pred = self.GENDER_LABELS[np.argmax(outputs[7:9])]  # 성별 예측
+        age_pred = self.AGE_LABELS[np.argmax(outputs[9:18])]  # 나이 예측
 
-        race_pred = self.RACE_LABELS[race_pred_idx]
-        gender_pred = self.GENDER_LABELS[gender_pred_idx]
-        age_pred = self.AGE_LABELS[age_pred_idx]
+        logging.info(f"FacePredict: 예측 결과 - 인종: {race_pred}, 성별: {gender_pred}, 나이: {age_pred}")
 
-        logging.info(f"FacePredict : FairFace 예측결과((({race_pred}, {gender_pred}, {age_pred})))")
+        # 예측 결과 딕셔너리 반환
         return {
             'race': race_pred,
             'gender': gender_pred,
@@ -120,20 +133,21 @@ class FacePredictorFactory:
     """
     FacePredictor 인스턴스를 생성하는 팩토리 클래스입니다.
     """
+
     @staticmethod
     def create(predictor_type, model_path=None):
         """
         지정된 유형의 얼굴 예측 모델을 생성합니다.
 
         Args:
-            predictor_type (str): 예측기 유형 ('fairface' 등).
-            model_path (str, optional): 모델 파일의 경로.
+            predictor_type (str): 사용할 예측기 유형 ('fairface' 등).
+            model_path (str, optional): 모델 파일 경로.
 
         Returns:
-            FacePredictor: 생성된 얼굴 예측 모델 인스턴스.
+            FacePredictModel: 생성된 얼굴 예측 모델 인스턴스.
 
         Raises:
-            ValueError: 지원하지 않는 예측기 유형인 경우.
+            ValueError: 지원하지 않는 예측기 유형인 경우 예외 발생.
         """
         if predictor_type == 'fairface':
             return FairFace(model_path)
@@ -144,10 +158,14 @@ class FacePredictorFactory:
 class FacePredictor(PipelineStep):
     """
     얼굴 이미지에서 인종, 성별, 나이를 예측하는 파이프라인 단계입니다.
+
+    Attributes:
+        predictors (list): 여러 FacePredictor 인스턴스를 포함한 리스트.
     """
+
     def __init__(self, predictors):
         """
-        FacePredict를 초기화합니다.
+        FacePredictor 클래스를 초기화합니다.
 
         Args:
             predictors (list): 사용할 FacePredictor 인스턴스들의 리스트.
@@ -157,67 +175,44 @@ class FacePredictor(PipelineStep):
     def process(self, data):
         """
         데이터를 처리하여 얼굴 속성을 예측합니다.
-        
-        Vars:
-            image_rgb = data.image_rgb : 얼굴 이미지
-            faces = data.predictions : 예측 정보 Dict
-            faces = data.predictions.get('face_box', []) : 얼굴 박스 정보
 
         Args:
-            data: 파이프라인 데이터 객체. 이미지와 얼굴 박스 정보를 포함해야 합니다.
+            data (object): 파이프라인 데이터 객체로, 'image_rgb' 속성에 얼굴 이미지가,
+                            'predictions' 속성에 얼굴 박스 정보가 포함되어 있어야 합니다.
 
         Returns:
-            data: 예측 결과가 추가된 데이터 객체.
+            object: 얼굴 속성 예측 결과가 추가된 데이터 객체.
+                    'predictions' 딕셔너리에 'race', 'gender', 'age' 속성이 추가됩니다.
         """
-        image_rgb = data.image_rgb
-        faces = data.predictions.get('face_boxes', [])
+        image_rgb = data.image_rgb  # 이미지 데이터 가져오기
+        faces = data.predictions.get('face_boxes', [])  # 얼굴 박스 정보 가져오기
 
         # 각 속성별로 예측 결과를 저장할 리스트 초기화
         race_predictions = []
         gender_predictions = []
         age_predictions = []
 
+        # 얼굴 박스가 있을 경우 예측 수행
         if faces:
             for face in faces:
                 x, y, x2, y2 = face
-                # 얼굴 이미지 추출
+                # 얼굴 이미지를 잘라내기
                 face_image = image_rgb[y:y2, x:x2]
 
-                # 각 얼굴에 대한 예측 결과 저장
+                # 각 얼굴에 대해 예측 결과 저장
                 face_result = {}
-
                 for predictor in self.predictors:
                     result = predictor.predict(face_image)
                     if result is not None:
                         face_result.update(result)
                     else:
-                        logging.warning("FacePredict : 예측 결과가 없습니다.")
+                        logging.warning("FacePredict: 예측 결과가 없습니다.")
 
                 # 예측 결과를 각 리스트에 추가
                 race_predictions.append(face_result.get('race', None))
                 gender_predictions.append(face_result.get('gender', None))
                 age_predictions.append(face_result.get('age', None))
-            """
-            Type:
-            data.predictions = Dict{
-                Str'': List[Str'', Str'', ...],
-                Str'': List[Str'', Str'', ...],
-                Str'': List[Str'', Str'', ...]
-            }
-            data.predictions = {
-                'race': ['백인', '아시아', ...],
-                'gender': ['남성', '여성', ...],
-                'age': ['30대', '20대', ...]
-            }
-            
-            현제:
-            data.predictions = {
-                'face_box': [(x1, y1, x2, y2), (x1, y1, x2, y2), ...],
-                'race': ['백인', '아시아', ...],
-                'gender': ['남성', '여성', ...],
-                'age': ['30대', '20대', ...]
-            }
-            """
+
             # 예측 결과를 데이터 객체에 추가
             data.predictions.update({
                 'race': race_predictions,
@@ -225,8 +220,8 @@ class FacePredictor(PipelineStep):
                 'age': age_predictions
             })
 
-            logging.info(f"FacePredict : 총 {len(faces)}개의 얼굴 속성 예측 완료")
+            logging.info(f"FacePredict: 총 {len(faces)}개의 얼굴 속성 예측 완료")
         else:
-            logging.info("FacePredict : 검출된 얼굴이 없습니다.")
+            logging.info("FacePredict: 검출된 얼굴이 없습니다.")
 
         return data
