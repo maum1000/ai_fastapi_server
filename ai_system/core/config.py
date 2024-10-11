@@ -92,7 +92,7 @@ class BaseConfig:
         """
         return {
             "dlib": cls.dlib,
-            "yolo_face": os.path.join(cls.yolo, cls.yolo_face_path),
+            "yolo": os.path.join(cls.yolo, cls.yolo_face_path),
             "yolo_president": os.path.join(cls.yolo, cls.yolo_president_path),
             "fairface": cls.fairface,
             "image_folder": cls.image_folder,
